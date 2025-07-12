@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WireGuard Config Generator</title>
+  <!-- Tailwind CSS - Latest version v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <!-- JSZip and FileSaver for download functionality -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <link rel="stylesheet" href="input.css">
+</head>
+
+<body class="bg-gray-100 text-gray-900">
+  <div class="max-w-4xl mx-auto p-4">
+    <h1 class="text-3xl font-bold mb-4">WireGuard Config Generator</h1>
+
+    <!-- Endpoints Input -->
+    <div class="mb-3">
+      <label for="endpoints" class="block font-medium mb-2">WireGuard Endpoints (one per line):</label>
+      <textarea id="endpoints" rows="5" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow" placeholder="e.g., 188.114.99.27:934"></textarea>
+      <p class="text-sm text-gray-500">If left empty, defaults to <code>engage.cloudflareclient.com:2408</code>.</p>
+    </div>
+
+    <!-- Private Key Input -->
+    <div class="mb-3">
+      <label for="privateKey" class="block font-medium mb-2">WireGuard Private Key:</label>
+      <input id="privateKey" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow" placeholder="e.g., uFyTT1kIndVhZX5WvsGQjsi0Zi11+Nu7NsvNbBing3A=" required>
+    </div>
+
+    <!-- Advanced Options -->
+    <div class="mb-2 p-4 rounded-lg bg-white shadow">
+      <div class="flex items-center mb-4">
+        <input id="advancedToggle" type="checkbox" class="mr-2">
+        <label for="advancedToggle" class="font-medium">Enable Advanced Options</label>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block font-medium">Address</label>
+          <input id="address" type="text" value="172.16.0.2/32" disabled class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100">
+        </div>
+        <div>
+          <label class="block font-medium">DNS</label>
+          <input id="dns" type="text" value="1.1.1.1, 1.0.0.1" disabled class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100">
+        </div>
+        <div>
+          <label class="block font-medium">MTU</label>
+          <input id="mtu" type="text" value="1280" disabled class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100">
+        </div>
+        <div>
+          <label class="block font-medium">AllowedIPs</label>
+          <input id="allowedIPs" type="text" value="0.0.0.0/0" disabled class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100">
+        </div>
+        <div>
+          <label class="block font-medium">PersistentKeepalive</label>
+          <input id="persistentKeepalive" type="text" value="25" disabled class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100">
+        </div>
+        <div>
+          <label class="block font-medium">PublicKey</label>
+          <input id="publicKey" type="text" value="bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=" disabled class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100">
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate Button -->
+    <div class="mb-3 flex justify-between">
+      <button id="generateBtn" class="bg-blue-200 text-blue-600 hover:bg-blue-300  px-4 py-2 rounded-lg cursor-pointer font-medium">
+        Generate Configs
+      </button>
+
+      <!-- Global Actions -->
+      <div class="flex gap-2">
+        <button id="copyAllBtn" class="bg-emerald-200 text-emerald-600 hover:bg-emerald-300 px-4 py-2 rounded-lg cursor-pointer font-medium">Copy All Links</button>
+        <button id="downloadBtn" class="bg-purple-200 text-purple-600 hover:bg-purple-300 px-4 py-2 rounded-lg cursor-pointer font-medium">Download All Configs</button>
+      </div>
+    </div>
+
+
+    <!-- Output Sections -->
+    <div id="output" class="flex gap-2 flex-col">
+      <!-- Generated configs and links will be appended here -->
+    </div>
+
+  </div>
+
+  <script>
+    // Global key pair, generated on page load
+    // let keyPair = window.wireguard.generateKeypair();
+    // let privateKey = "";
+    // let publicKey = keyPair.publicKey || "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="; // fallback
+    // let publicKey = "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="; // fallback
+    // console.log("privateKey: ", privateKey);
+    // console.log("publicKey: ", publicKey);
+
+
+    // Toggle advanced options
+    document.getElementById('advancedToggle').addEventListener('change', function () {
+      const advancedInputs = ['address', 'dns', 'mtu', 'allowedIPs', 'persistentKeepalive', 'publicKey'];
+      advancedInputs.forEach(id => {
+        document.getElementById(id).disabled = !this.checked;
+      });
+    });
+
+    // Generate configs when button clicked
+    document.getElementById('generateBtn').addEventListener('click', generateConfigs);
+
+    function generateConfigs() {
+      const endpointsValue = document.getElementById('endpoints').value.trim();
+      let endpoints = endpointsValue ? endpointsValue.split('\n').map(e => e.trim()).filter(e => e) : [];
+      if (endpoints.length === 0) {
+        endpoints = ['engage.cloudflareclient.com:2408'];
+      }
+
+      // Read advanced options values
+      const address = document.getElementById('address').value.trim();
+      const dns = document.getElementById('dns').value.trim();
+      const mtu = document.getElementById('mtu').value.trim();
+      const allowedIPs = document.getElementById('allowedIPs').value.trim();
+      const persistentKeepalive = document.getElementById('persistentKeepalive').value.trim();
+      const privateKey = document.getElementById('privateKey').value.trim();
+      let publicKey = document.getElementById('publicKey').value.trim();
+
+      if (privateKey == "") {
+        alert("Please enter a private key.");
+        return;
+      }
+
+      if (publicKey == "") {
+        publicKey = "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=";
+      }
+
+      // Clear previous output
+      const outputDiv = document.getElementById('output');
+      outputDiv.innerHTML = "";
+
+      // Array to store links for copying
+      let allLinks = [];
+      // Array for download files
+      window.configFiles = [];
+
+      endpoints.forEach((endpoint, index) => {
+        // Build config content
+        const configContent = `[Interface]
+PrivateKey = ${privateKey}
+Address = ${address}
+DNS = ${dns}
+MTU = ${mtu}
+
+[Peer]
+PublicKey = ${publicKey}
+Endpoint = ${endpoint}
+AllowedIPs = ${allowedIPs}
+PersistentKeepalive = ${persistentKeepalive}
+`;
+        // Generate wireguard link
+        const filename = `wgconfig${index + 1}.conf`;
+        const wgLink = `wireguard://${privateKey}@${endpoint}?address=${encodeURIComponent(address)}&publickey=${encodeURIComponent(publicKey)}&mtu=${mtu}#${filename}`;
+        allLinks.push(wgLink);
+
+        // Store config file for download later
+        window.configFiles.push({
+          filename,
+          content: configContent
+        });
+
+        // Create container for each config and link
+        const configContainer = document.createElement('div');
+        configContainer.className = "bg-white p-4 rounded-lg shadow";
+
+        // Config textarea
+        const configLabel = document.createElement('label');
+        configLabel.className = "font-medium block mb-2";
+        configLabel.textContent = `Config for ${endpoint}`;
+        const configTextarea = document.createElement('textarea');
+        configTextarea.className = "w-full h-48 p-2 border border-gray-300 rounded-lg mb-2 outline-none focus:border-gray-400";
+        configTextarea.value = configContent;
+        configTextarea.readOnly = true;
+
+        // WireGuard link container
+        const linkContainer = document.createElement('div');
+        linkContainer.className = "flex items-center gap-x-2";
+        const linkInput = document.createElement('input');
+        linkInput.className = "w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400";
+        linkInput.value = wgLink;
+        linkInput.readOnly = true;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = "bg-emerald-200 text-emerald-600 hover:bg-emerald-300 px-4 py-2 rounded-lg cursor-pointer font-medium w-[150px]";
+        copyBtn.textContent = "Copy Link";
+        copyBtn.addEventListener('click', function () {
+          copyText(wgLink);
+        });
+
+        linkContainer.appendChild(linkInput);
+        linkContainer.appendChild(copyBtn);
+
+        configContainer.appendChild(configLabel);
+        configContainer.appendChild(configTextarea);
+        configContainer.appendChild(linkContainer);
+
+        outputDiv.appendChild(configContainer);
+      });
+
+      // Store all links for copy all operation
+      window.allWGLinks = allLinks;
+    }
+
+    // Copy all links functionality
+    document.getElementById('copyAllBtn').addEventListener('click', function () {
+      if (window.allWGLinks && window.allWGLinks.length > 0) {
+        copyText(window.allWGLinks.join("\n"));
+      } else {
+        alert("No links generated.");
+      }
+    });
+
+    // Download configs functionality
+    document.getElementById('downloadBtn').addEventListener('click', function () {
+      if (window.configFiles && window.configFiles.length > 0) {
+        downloadConfigs(window.configFiles);
+      } else {
+        alert("No configs generated.");
+      }
+    });
+
+    // Utility copy function
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Copied to clipboard");
+      }).catch((err) => {
+        alert("Failed to copy: " + err);
+      });
+    }
+  </script>
+</body>
+
+</html>
