@@ -20,7 +20,19 @@
     <!-- Endpoints Input -->
     <div class="mb-3">
       <label for="endpoints" class="block font-medium mb-2">WireGuard Endpoints (one per line):</label>
-      <textarea id="endpoints" rows="5" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow" placeholder="e.g., 188.114.99.27:934"></textarea>
+      <textarea id="endpoints" rows="5" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow max-h-[400px]" placeholder="e.g., 188.114.99.27:934"></textarea>
+      
+      <div class="flex gap-2 mb-2">
+        <button onclick="fetchEndpoints('https://raw.githubusercontent.com/darknessm427/IP_Generator/main/ips.txt', parseTextData)" 
+                class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+          Load IPs from Source 1
+        </button>
+        <button onclick="fetchEndpoints('https://raw.githubusercontent.com/ircfspace/endpoint/main/ip.json', parseJSONData)" 
+                class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+          Load IPs from Source 2
+        </button>
+      </div>
+
       <p class="text-sm text-gray-500">If left empty, defaults to <code>engage.cloudflareclient.com:2408</code>.</p>
     </div>
 
@@ -223,6 +235,35 @@ PersistentKeepalive = ${persistentKeepalive}
         alert("No configs generated.");
       }
     });
+
+    // IP Fetching and Parsing functions
+    async function fetchEndpoints(url, parser) {
+      try {
+        const response = await fetch(url);
+        const data = await (parser === parseJSONData ? response.json() : response.text());
+        const ips = parser(data);
+        
+        const textarea = document.getElementById('endpoints');
+        const existing = new Set(textarea.value.split('\n').filter(Boolean));
+        const newIps = ips.filter(ip => !existing.has(ip));
+        
+        if (newIps.length > 0) {
+          textarea.value = [...existing, ...newIps].join('\n');
+        }
+      } catch (error) {
+        alert(`Error fetching endpoints: ${error}`);
+      }
+    }
+
+    function parseTextData(text) {
+      return text.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
+    }
+
+    function parseJSONData(json) {
+      return json.ipv4.map(ip => ip.trim());
+    }
 
     // Utility copy function
     function copyText(text) {
