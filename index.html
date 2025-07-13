@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WireGuard Config Generator</title>
+  <link rel="shortcut icon" href="wireguard.svg" type="image/svg+xml">
   <!-- Tailwind CSS - Latest version v4 -->
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <!-- JSZip and FileSaver for download functionality -->
@@ -21,14 +22,12 @@
     <div class="mb-3">
       <label for="endpoints" class="block font-medium mb-2">WireGuard Endpoints (one per line):</label>
       <textarea id="endpoints" rows="5" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow max-h-[400px]" placeholder="e.g., 188.114.99.27:934"></textarea>
-      
+
       <div class="flex gap-2 mb-2">
-        <button onclick="fetchEndpoints('https://raw.githubusercontent.com/darknessm427/IP_Generator/main/ips.txt', parseTextData)" 
-                class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+        <button onclick="fetchEndpoints('https://raw.githubusercontent.com/darknessm427/IP_Generator/main/ips.txt', parseTextData)" class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-3 py-1 rounded-md text-sm cursor-pointer">
           Load IPs from Source 1
         </button>
-        <button onclick="fetchEndpoints('https://raw.githubusercontent.com/ircfspace/endpoint/main/ip.json', parseJSONData)" 
-                class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+        <button onclick="fetchEndpoints('https://raw.githubusercontent.com/ircfspace/endpoint/main/ip.json', parseJSONData)" class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-3 py-1 rounded-md text-sm cursor-pointer">
           Load IPs from Source 2
         </button>
       </div>
@@ -38,12 +37,10 @@
 
     <!-- Config Import Buttons -->
     <div class="mb-3 flex gap-2">
-      <button onclick="document.getElementById('fileImportModal').showModal()" 
-              class="bg-indigo-200 text-indigo-600 hover:bg-indigo-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+      <button onclick="document.getElementById('fileImportModal').showModal()" class="bg-indigo-200 text-indigo-600 hover:bg-indigo-300 px-3 py-1 rounded-md text-sm cursor-pointer">
         Import Config Settings from File
       </button>
-      <button onclick="document.getElementById('linkImportModal').showModal()" 
-              class="bg-indigo-200 text-indigo-600 hover:bg-indigo-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+      <button onclick="document.getElementById('linkImportModal').showModal()" class="bg-indigo-200 text-indigo-600 hover:bg-indigo-300 px-3 py-1 rounded-md text-sm cursor-pointer">
         Import Config Settings from Link
       </button>
     </div>
@@ -63,6 +60,8 @@
       <label for="privateKeySelect" class="block font-medium mb-2">Or select a pre-existing private key:</label>
       <select id="privateKeySelect" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow">
         <option value="">Select a private key...</option>
+        <optgroup label="Saved Keys" id="savedKeysGroup"></optgroup>
+        <optgroup label="Pre-loaded Keys"></optgroup>
       </select>
       <p class="text-sm text-gray-500 mt-2">You can either enter your private key manually above or choose one from the pre-loaded list below.</p>
     </div>
@@ -127,8 +126,7 @@
     <h3 class="text-lg font-medium mb-4">Import from Config File</h3>
     <form method="dialog">
       <label for="configFile" class="upload-config-box border-2 border-dashed border-gray-300 p-6 rounded-lg text-center cursor-pointer hover:border-blue-400 bg-gray-50 mb-2 w-full block"></label>
-      <input type="file" id="configFile" accept=".conf" class="mb-4 w-full hidden" 
-             onchange="handleFileImport(this.files[0])">
+      <input type="file" id="configFile" accept=".conf" class="mb-4 w-full hidden" onchange="handleFileImport(this.files[0])">
       <div class="flex justify-end gap-2">
         <button class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">Cancel</button>
       </div>
@@ -138,11 +136,9 @@
   <dialog id="linkImportModal" class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl modal">
     <h3 class="text-lg font-medium mb-4">Import from WireGuard Link</h3>
     <form method="dialog" onsubmit="handleLinkImport(event)">
-      <textarea id="configLink" class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100" 
-                placeholder="wireguard://..." rows="10"></textarea>
+      <textarea id="configLink" class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100" placeholder="wireguard://..." rows="10"></textarea>
       <div class="flex justify-end gap-2">
-        <button type="button" onclick="this.closest('dialog').close()" 
-                class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">
+        <button type="button" onclick="this.closest('dialog').close()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">
           Cancel
         </button>
         <button type="submit" class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-4 py-2 rounded-lg cursor-pointer">
@@ -162,13 +158,36 @@
     // console.log("publicKey: ", publicKey);
 
 
+    // LocalStorage functions
+    function loadSavedKeys() {
+      const savedKeys = JSON.parse(localStorage.getItem('wgSavedKeys') || '{}');
+      const savedGroup = document.getElementById('savedKeysGroup');
+      savedGroup.innerHTML = '';
+
+      for (const [name, key] of Object.entries(savedKeys)) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = name;
+        savedGroup.appendChild(option);
+      }
+    }
+
+    function checkKeyExists(key) {
+      const savedKeys = JSON.parse(localStorage.getItem('wgSavedKeys') || '{}');
+      return Object.values(savedKeys).includes(key);
+    }
+
     // Fetch and populate private keys on page load
     async function fetchPrivateKeys() {
       try {
+        // Load saved keys first
+        loadSavedKeys();
+
+        // Load pre-loaded keys
         const response = await fetch('https://raw.githubusercontent.com/YasinC2/wg-config-fetcher/refs/heads/main/configs/wireguard_privatekeys.txt');
         const data = await response.text();
         const keys = data.split('\n').map(line => decodeURIComponent(line.trim())).filter(line => line);
-        const select = document.getElementById('privateKeySelect');
+        const select = document.getElementById('privateKeySelect').querySelector('optgroup[label="Pre-loaded Keys"]');
         keys.forEach(key => {
           const option = document.createElement('option');
           option.value = key;
@@ -181,7 +200,59 @@
     }
 
     // Initialize on page load
-    document.addEventListener('DOMContentLoaded', fetchPrivateKeys);
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchPrivateKeys();
+
+      // Save key handler
+      document.getElementById('savePrivateKey').addEventListener('click', () => {
+        const key = document.getElementById('privateKey').value.trim();
+        if (!key) {
+          alert('Please enter a private key to save');
+          return;
+        }
+
+        const name = prompt('Enter a name for this key:');
+        if (name) {
+          const savedKeys = JSON.parse(localStorage.getItem('wgSavedKeys') || '{}');
+          savedKeys[name] = key;
+          localStorage.setItem('wgSavedKeys', JSON.stringify(savedKeys));
+          loadSavedKeys();
+          document.getElementById('deletePrivateKey').disabled = false;
+        }
+      });
+
+      // Delete key handler
+      document.getElementById('deletePrivateKey').addEventListener('click', () => {
+        if (!confirm('Are you sure you want to delete this key?')) {
+          return;
+        }
+        const key = document.getElementById('privateKey').value.trim();
+        const savedKeys = JSON.parse(localStorage.getItem('wgSavedKeys') || '{}');
+
+        // Find key by value
+        const entry = Object.entries(savedKeys).find(([k, v]) => v === key);
+        if (entry) {
+          delete savedKeys[entry[0]];
+          localStorage.setItem('wgSavedKeys', JSON.stringify(savedKeys));
+          loadSavedKeys();
+          document.getElementById('deletePrivateKey').disabled = true;
+        }
+      });
+
+      // Input validation
+      document.getElementById('privateKey').addEventListener('input', function () {
+        const key = this.value.trim();
+        document.getElementById('deletePrivateKey').disabled = !checkKeyExists(key);
+      });
+    });
+
+    // Dropdown selection handler
+    document.getElementById('privateKeySelect').addEventListener('change', function () {
+      if (this.value) {
+        document.getElementById('privateKey').value = this.value;
+        document.getElementById('deletePrivateKey').disabled = !checkKeyExists(this.value);
+      }
+    });
 
     // Toggle advanced options
     document.getElementById('advancedToggle').addEventListener('change', function () {
@@ -325,11 +396,11 @@ PersistentKeepalive = ${persistentKeepalive}
         const response = await fetch(url);
         const data = await (parser === parseJSONData ? response.json() : response.text());
         const ips = parser(data);
-        
+
         const textarea = document.getElementById('endpoints');
         const existing = new Set(textarea.value.split('\n').filter(Boolean));
         const newIps = ips.filter(ip => !existing.has(ip));
-        
+
         if (newIps.length > 0) {
           textarea.value = [...existing, ...newIps].join('\n');
         }
@@ -351,9 +422,9 @@ PersistentKeepalive = ${persistentKeepalive}
     // Config Import Handlers
     function handleFileImport(file) {
       if (!file) return;
-      
+
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function (e) {
         parseConfigContent(e.target.result);
         document.getElementById('fileImportModal').close();
       };
@@ -365,12 +436,11 @@ PersistentKeepalive = ${persistentKeepalive}
       const link = document.getElementById('configLink').value.trim();
       const config = parseWireguardLink(link);
       // console.log("Imported config:", config);
-      
+
       if (config) {
         applyImportedConfig(config);
         document.getElementById('linkImportModal').close();
-      }
-      else {
+      } else {
         alert("Invalid WireGuard link.");
       }
     }
@@ -439,6 +509,14 @@ PersistentKeepalive = ${persistentKeepalive}
       });
     }
   </script>
+
+  <a href="https://github.com/YasinC2/wireguard-config-generator" aria-label="View source on GitHub" title="View source on GitHub" target="_blank" style="position: absolute;width: 60px;height: 60px;display: inline-block;clip-path: polygon(100% 0%, 0% 0%, 100% 100%);top: 0;right: 0;bottom: auto;left: auto;background-color: transparent;background-repeat: no-repeat;background-position: center center;background-size: 100% 100%;text-decoration: none">
+    <svg width="60" height="60" viewBox="0 0 21.147 21.147" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" fill="#000000" aria-hidden="true" focusable="false">
+      <g transform="rotate(0 10.5735 10.5735)">
+        <path d="M21.147 0H0l9.535 9.535c.024-.025.1-.03.125-.059.258-.23.502-.48.737-.735-.116-.084-.234-.168-.338-.268-.284-.247-.509-.585-.537-.969-.05-.352.178-.652.223-.99.049-.225-.018-.45-.027-.675-.015-.072.03-.167.115-.142.243.091.37.36.402.604.064.354-.12.7-.047 1.054.068.407.423.699.792.843.18-.122.378-.231.597-.259.032-.013.116.008.116-.017-.39-.488-.72-1.073-.725-1.714-.013-.672.348-1.289.8-1.76.377-.44.928-.72 1.505-.763.071-.057.104-.17.164-.247.208-.274.472-.516.785-.665.078-.049.169-.091.229.006.265.28.39.659.494 1.021.04.115.038.253.099.355.344.213.678.445.959.738.316.3.604.63.827 1.005.048.098.108.176.227.173.427.102.877.225 1.212.525.032.035.088.078.073.132a2.064 2.064 0 0 1-.967 1.044c-.009.39-.147.774-.368 1.093a3.65 3.65 0 0 1-1.186 1.002 2.012 2.012 0 0 1-1.067.221c-.608-.029-1.148-.366-1.618-.726a1.283 1.283 0 0 1-.234.666c-.421.479-.896.909-1.322 1.383-.038.022-.029.093-.052.117l9.62 9.619z" />
+      </g>
+    </svg>
+  </a>
 </body>
 
 </html>
