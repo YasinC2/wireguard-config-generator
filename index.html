@@ -36,10 +36,35 @@
       <p class="text-sm text-gray-500">If left empty, defaults to <code>engage.cloudflareclient.com:2408</code>.</p>
     </div>
 
+    <!-- Config Import Buttons -->
+    <div class="mb-3 flex gap-2">
+      <button onclick="document.getElementById('fileImportModal').showModal()" 
+              class="bg-indigo-200 text-indigo-600 hover:bg-indigo-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+        Import Config Settings from File
+      </button>
+      <button onclick="document.getElementById('linkImportModal').showModal()" 
+              class="bg-indigo-200 text-indigo-600 hover:bg-indigo-300 px-3 py-1 rounded-md text-sm cursor-pointer">
+        Import Config Settings from Link
+      </button>
+    </div>
+
     <!-- Private Key Input -->
     <div class="mb-3">
       <label for="privateKey" class="block font-medium mb-2">WireGuard Private Key:</label>
-      <input id="privateKey" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow" placeholder="e.g., uFyTT1kIndVhZX5WvsGQjsi0Zi11+Nu7NsvNbBing3A=" required>
+      <div class="flex items-center">
+        <input id="privateKey" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow" placeholder="e.g., uFyTT1kIndVhZX5WvsGQjsi0Zi11+Nu7NsvNbBing3A=" required>
+        <button class="bg-blue-200 text-blue-600 hover:bg-blue-300 px-3 py-2 rounded-lg cursor-pointer ml-2 text-sm" id="savePrivateKey">Save</button>
+        <button class="bg-red-200 text-red-600 hover:bg-red-300 px-3 py-2 rounded-lg cursor-pointer ml-2 text-sm disabled:opacity-50 disabled:pointer-events-none disabled:cursor-crosshair" id="deletePrivateKey" disabled>Delete</button>
+      </div>
+    </div>
+
+    <!-- Pre-existing Keys Dropdown -->
+    <div class="mb-3">
+      <label for="privateKeySelect" class="block font-medium mb-2">Or select a pre-existing private key:</label>
+      <select id="privateKeySelect" class="bg-white w-full p-2 border border-gray-50 rounded-lg outline-none focus:border-gray-300 shadow">
+        <option value="">Select a private key...</option>
+      </select>
+      <p class="text-sm text-gray-500 mt-2">You can either enter your private key manually above or choose one from the pre-loaded list below.</p>
     </div>
 
     <!-- Advanced Options -->
@@ -97,6 +122,36 @@
 
   </div>
 
+  <!-- Import Modals -->
+  <dialog id="fileImportModal" class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl modal">
+    <h3 class="text-lg font-medium mb-4">Import from Config File</h3>
+    <form method="dialog">
+      <label for="configFile" class="upload-config-box border-2 border-dashed border-gray-300 p-6 rounded-lg text-center cursor-pointer hover:border-blue-400 bg-gray-50 mb-2 w-full block"></label>
+      <input type="file" id="configFile" accept=".conf" class="mb-4 w-full hidden" 
+             onchange="handleFileImport(this.files[0])">
+      <div class="flex justify-end gap-2">
+        <button class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="linkImportModal" class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl modal">
+    <h3 class="text-lg font-medium mb-4">Import from WireGuard Link</h3>
+    <form method="dialog" onsubmit="handleLinkImport(event)">
+      <textarea id="configLink" class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:border-gray-400 disabled:bg-gray-100" 
+                placeholder="wireguard://..." rows="10"></textarea>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="this.closest('dialog').close()" 
+                class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">
+          Cancel
+        </button>
+        <button type="submit" class="bg-cyan-200 text-cyan-600 hover:bg-cyan-300 px-4 py-2 rounded-lg cursor-pointer">
+          Import
+        </button>
+      </div>
+    </form>
+  </dialog>
+
   <script>
     // Global key pair, generated on page load
     // let keyPair = window.wireguard.generateKeypair();
@@ -106,6 +161,27 @@
     // console.log("privateKey: ", privateKey);
     // console.log("publicKey: ", publicKey);
 
+
+    // Fetch and populate private keys on page load
+    async function fetchPrivateKeys() {
+      try {
+        const response = await fetch('https://raw.githubusercontent.com/YasinC2/wg-config-fetcher/refs/heads/main/configs/wireguard_privatekeys.txt');
+        const data = await response.text();
+        const keys = data.split('\n').map(line => decodeURIComponent(line.trim())).filter(line => line);
+        const select = document.getElementById('privateKeySelect');
+        keys.forEach(key => {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = key;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error fetching private keys:', error);
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', fetchPrivateKeys);
 
     // Toggle advanced options
     document.getElementById('advancedToggle').addEventListener('change', function () {
@@ -126,12 +202,19 @@
       }
 
       // Read advanced options values
-      const address = document.getElementById('address').value.trim();
-      const dns = document.getElementById('dns').value.trim();
+      const address = document.getElementById('address').value.trim().replace(/,\s+/g, ',');
+      const dns = document.getElementById('dns').value.trim().replace(/,\s+/g, ',');
       const mtu = document.getElementById('mtu').value.trim();
-      const allowedIPs = document.getElementById('allowedIPs').value.trim();
+      const allowedIPs = document.getElementById('allowedIPs').value.trim().replace(/,\s+/g, ',');
       const persistentKeepalive = document.getElementById('persistentKeepalive').value.trim();
-      const privateKey = document.getElementById('privateKey').value.trim();
+      const privateKeyInput = document.getElementById('privateKey').value.trim();
+      const privateKeySelect = document.getElementById('privateKeySelect').value.trim();
+      const privateKey = privateKeyInput || privateKeySelect;
+
+      if (!privateKey) {
+        alert("Please enter a private key or select one from the dropdown list.");
+        return;
+      }
       let publicKey = document.getElementById('publicKey').value.trim();
 
       if (privateKey == "") {
@@ -167,7 +250,7 @@ AllowedIPs = ${allowedIPs}
 PersistentKeepalive = ${persistentKeepalive}
 `;
         // Generate wireguard link
-        const filename = `wgconfig${index + 1}.conf`;
+        const filename = `WG Config ${index + 1}`;
         const wgLink = `wireguard://${privateKey}@${endpoint}?address=${encodeURIComponent(address)}&publickey=${encodeURIComponent(publicKey)}&mtu=${mtu}#${filename}`;
         allLinks.push(wgLink);
 
@@ -263,6 +346,88 @@ PersistentKeepalive = ${persistentKeepalive}
 
     function parseJSONData(json) {
       return json.ipv4.map(ip => ip.trim());
+    }
+
+    // Config Import Handlers
+    function handleFileImport(file) {
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        parseConfigContent(e.target.result);
+        document.getElementById('fileImportModal').close();
+      };
+      reader.readAsText(file);
+    }
+
+    function handleLinkImport(event) {
+      event.preventDefault();
+      const link = document.getElementById('configLink').value.trim();
+      const config = parseWireguardLink(link);
+      // console.log("Imported config:", config);
+      
+      if (config) {
+        applyImportedConfig(config);
+        document.getElementById('linkImportModal').close();
+      }
+      else {
+        alert("Invalid WireGuard link.");
+      }
+    }
+
+    function parseWireguardLink(link) {
+      link = decodeURIComponent(link);
+      const match = link.match(/wireguard:\/\/([^@]+)@([^?]+)\?(.*)/);
+      if (!match) return null;
+
+      const params = new URLSearchParams(match[3]);
+      return {
+        privateKey: match[1],
+        address: params.get('address') || '',
+        dns: params.get('dns') || '',
+        mtu: params.get('mtu') || '',
+        publicKey: params.get('publickey') || '',
+        allowedIPs: params.get('allowedips') || '',
+        persistentKeepalive: params.get('persistentkeepalive') || ''
+      };
+    }
+
+    function parseConfigContent(content) {
+      const config = {};
+      content.split('\n').forEach(line => {
+        const match = line.match(/(\w+)\s*=\s*(.+)/);
+        if (match) {
+          config[match[1].toLowerCase()] = match[2].trim();
+        }
+      });
+      applyImportedConfig(config);
+    }
+
+    function applyImportedConfig(config) {
+      // Enable advanced options if needed
+      if (!document.getElementById('advancedToggle').checked) {
+        document.getElementById('advancedToggle').click();
+      }
+      // console.log("Passed config:", config);
+
+      // Set values excluding any endpoint-related fields
+      if (config.privateKey) {
+        document.getElementById('privateKey').value = config.privateKey;
+        // Try to find matching option in dropdown
+        const select = document.getElementById('privateKeySelect');
+        for (let option of select.options) {
+          if (option.value === config.privateKey) {
+            select.value = config.privateKey;
+            break;
+          }
+        }
+      }
+      if (config.address) document.getElementById('address').value = config.address;
+      if (config.dns) document.getElementById('dns').value = config.dns;
+      if (config.mtu) document.getElementById('mtu').value = config.mtu;
+      if (config.allowedIPs) document.getElementById('allowedIPs').value = config.allowedIPs;
+      if (config.persistentKeepalive) document.getElementById('persistentKeepalive').value = config.persistentKeepalive;
+      if (config.publicKey) document.getElementById('publicKey').value = config.publicKey;
     }
 
     // Utility copy function
