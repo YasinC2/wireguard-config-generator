@@ -7,7 +7,8 @@
   <title>WireGuard Config Generator</title>
   <link rel="shortcut icon" href="wireguard.svg" type="image/svg+xml">
   <!-- Tailwind CSS - Latest version v4 -->
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script> -->
+  <script src="tailwindcss_browser_4.js"></script>
   <!-- JSZip and FileSaver for download functionality -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -101,7 +102,7 @@
     </div>
 
     <!-- Generate Button -->
-    <div class="mb-3 flex justify-between">
+    <div class="mb-3 flex gap-2 justify-between">
       <button id="generateBtn" class="bg-blue-200 text-blue-600 hover:bg-blue-300  px-4 py-2 rounded-lg cursor-pointer font-medium">
         Generate Configs
       </button>
@@ -322,7 +323,7 @@ PersistentKeepalive = ${persistentKeepalive}
 `;
         // Generate wireguard link
         const filename = `WG Config ${index + 1}`;
-        const wgLink = `wireguard://${privateKey}@${endpoint}?address=${encodeURIComponent(address)}&publickey=${encodeURIComponent(publicKey)}&mtu=${mtu}#${filename}`;
+        const wgLink = `wireguard://${encodeURIComponent(privateKey)}@${endpoint}?address=${encodeURIComponent(address)}&publickey=${encodeURIComponent(publicKey)}&mtu=${mtu}#${filename}`;
         allLinks.push(wgLink);
 
         // Store config file for download later
