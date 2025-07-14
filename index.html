@@ -447,13 +447,18 @@ PersistentKeepalive = ${persistentKeepalive}
     }
 
     function parseWireguardLink(link) {
-      link = decodeURIComponent(link);
+      // link = decodeURIComponent(link);
       const match = link.match(/wireguard:\/\/([^@]+)@([^?]+)\?(.*)/);
       if (!match) return null;
 
-      const params = new URLSearchParams(match[3]);
+      console.log(match[3]);
+      // Remove fragment (e.g., #wg-warp-1)
+      const queryString = match[3].split('#')[0];
+      const params = new URLSearchParams(queryString);
+      console.log(params.get('publickey'));
+      
       return {
-        privateKey: match[1],
+        privateKey: decodeURIComponent(match[1]),
         address: params.get('address') || '',
         dns: params.get('dns') || '',
         mtu: params.get('mtu') || '',
