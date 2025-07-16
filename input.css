@@ -12,7 +12,7 @@ dialog:-internal-dialog-in-top-layer::backdrop {
 }
 
 .upload-config-box::before {
-    content: "Click to upload files or drag and drop it here.";
+    content: "Click to upload .conf file or drag and drop it here.";
     font-size: 12px;
     color: #888;
 }
