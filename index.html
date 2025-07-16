@@ -126,8 +126,10 @@
   <dialog id="fileImportModal" class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl modal">
     <h3 class="text-lg font-medium mb-4">Import from Config File</h3>
     <form method="dialog">
-      <label for="configFile" class="upload-config-box border-2 border-dashed border-gray-300 p-6 rounded-lg text-center cursor-pointer hover:border-blue-400 bg-gray-50 mb-2 w-full block"></label>
-      <input type="file" id="configFile" accept=".conf" class="mb-4 w-full hidden" onchange="handleFileImport(this.files[0])">
+      <div class="relative border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 bg-gray-50">
+        <label for="configFile" class="upload-config-box p-6 rounded-lg text-center cursor-pointer w-full block"></label>
+        <input type="file" id="configFile" accept=".conf" class="w-full absolute top-0 left-0 right-0 bottom-0 cursor-pointer opacity-0" onchange="handleFileImport(this.files[0])">
+      </div>
       <div class="flex justify-end gap-2">
         <button class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">Cancel</button>
       </div>
@@ -425,7 +427,7 @@ PersistentKeepalive = ${persistentKeepalive}
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = function (e) {
+      reader.onload = function (e) {        
         parseConfigContent(e.target.result);
         document.getElementById('fileImportModal').close();
       };
@@ -451,20 +453,20 @@ PersistentKeepalive = ${persistentKeepalive}
       const match = link.match(/wireguard:\/\/([^@]+)@([^?]+)\?(.*)/);
       if (!match) return null;
 
-      console.log(match[3]);
+      // console.log(match[3]);
       // Remove fragment (e.g., #wg-warp-1)
       const queryString = match[3].split('#')[0];
       const params = new URLSearchParams(queryString);
-      console.log(params.get('publickey'));
+      // console.log(params.get('publickey'));
       
       return {
-        privateKey: decodeURIComponent(match[1]),
+        privatekey: decodeURIComponent(match[1]),
         address: params.get('address') || '',
         dns: params.get('dns') || '',
         mtu: params.get('mtu') || '',
-        publicKey: params.get('publickey') || '',
-        allowedIPs: params.get('allowedips') || '',
-        persistentKeepalive: params.get('persistentkeepalive') || ''
+        publickey: params.get('publickey') || '',
+        allowedips: params.get('allowedips') || '',
+        persistentkeepalive: params.get('persistentkeepalive') || ''
       };
     }
 
@@ -484,16 +486,17 @@ PersistentKeepalive = ${persistentKeepalive}
       if (!document.getElementById('advancedToggle').checked) {
         document.getElementById('advancedToggle').click();
       }
-      // console.log("Passed config:", config);
+      // console.log("config:", config);
+      // console.log("config.privateKey:", config.privateKey);
 
       // Set values excluding any endpoint-related fields
-      if (config.privateKey) {
-        document.getElementById('privateKey').value = config.privateKey;
+      if (config.privatekey) {
+        document.getElementById('privateKey').value = config.privatekey;
         // Try to find matching option in dropdown
         const select = document.getElementById('privateKeySelect');
         for (let option of select.options) {
-          if (option.value === config.privateKey) {
-            select.value = config.privateKey;
+          if (option.value === config.privatekey) {
+            select.value = config.privatekey;
             break;
           }
         }
@@ -501,9 +504,9 @@ PersistentKeepalive = ${persistentKeepalive}
       if (config.address) document.getElementById('address').value = config.address;
       if (config.dns) document.getElementById('dns').value = config.dns;
       if (config.mtu) document.getElementById('mtu').value = config.mtu;
-      if (config.allowedIPs) document.getElementById('allowedIPs').value = config.allowedIPs;
-      if (config.persistentKeepalive) document.getElementById('persistentKeepalive').value = config.persistentKeepalive;
-      if (config.publicKey) document.getElementById('publicKey').value = config.publicKey;
+      if (config.allowedips) document.getElementById('allowedIPs').value = config.allowedips;
+      if (config.persistentkeepalive) document.getElementById('persistentKeepalive').value = config.persistentkeepalive;
+      if (config.publickey) document.getElementById('publicKey').value = config.publickey;
     }
 
     // Utility copy function
